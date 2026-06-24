@@ -7,7 +7,6 @@ import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
-from pathlib import Path
 
 
 BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8000")
@@ -116,7 +115,6 @@ def main() -> int:
         "/ui/media/forms/public-user",
         "/ui/media/forms/private-user",
         "/ui/media/forms/bulk",
-        "/ui/media/forms/clean",
         "/ui/music/forms/song",
         "/ui/music/forms/youtube",
         "/ui/music/forms/spotify-link",
@@ -129,27 +127,6 @@ def main() -> int:
 
     status, _, stale = text("GET", "/ui/tasks/not-a-task/card?container_id=media-task-panel")
     checks.append(Check("stale task card stops polling", status == 200 and "Job no longer active" in stale, f"status={status}"))
-
-    sample = Path("data/dev_e2e_clean_input.txt")
-    sample.parent.mkdir(parents=True, exist_ok=True)
-    sample.write_text("Post: smoke\nCaption: hello world\n", encoding="utf-8")
-
-    status, _, html = text("POST", "/ui/media/clean/submit", form={"file_path": str(sample)})
-    task_id = extract_task_id(html)
-    checks.append(Check("media clean submit returns task card", status == 200 and task_id is not None, f"task={task_id} status={status}"))
-    if task_id:
-        _, task = wait_task(task_id, timeout=60)
-        ok = bool(task and task.get("status") == "completed" and task.get("artifacts"))
-        checks.append(Check("media clean completes with artifact", ok, json.dumps(task)[:500] if task else "missing"))
-        if task and task.get("artifacts"):
-            artifact_response = first_artifact_download(task)
-            status_code, headers, content = artifact_response or (0, {}, b"")
-            disposition = header_value(headers, "Content-Disposition")
-            checks.append(Check(
-                "artifact downloads as attachment",
-                status_code == 200 and "attachment" in disposition.lower() and len(content) > 0,
-                f"status={status_code} disposition={disposition}",
-            ))
 
     status, _, html = text("POST", "/ui/media/post/submit", form={"url": ""})
     checks.append(Check("media post validation", status == 400 and "Instagram post URL is required" in html, f"status={status}"))
@@ -165,10 +142,10 @@ def main() -> int:
         checks.append(Check("music invalid link fails visibly", bool(task and task.get("status") == "failed"), json.dumps(task)[:500] if task else "missing"))
 
     status, _, html = text("POST", "/ui/music/youtube/submit", form={})
-    checks.append(Check("music youtube validation", status == 400 and "Provide exactly one of direct input or input_file" in html, f"status={status}"))
+    checks.append(Check("music youtube validation", status == 400 and "Provide at least one YouTube input" in html, f"status={status}"))
 
     status, _, html = text("POST", "/ui/music/song/submit", form={})
-    checks.append(Check("music song validation", status == 400 and "Provide exactly one of direct input or input_file" in html, f"status={status}"))
+    checks.append(Check("music song validation", status == 400 and "Provide at least one song" in html, f"status={status}"))
 
     status, _, payload = json_body("GET", "/api/tasks")
     checks.append(Check("tasks list", status == 200 and isinstance(payload, list), f"status={status}"))

@@ -41,7 +41,20 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 
+def load_dotenv(path=".env"):
+    if not os.path.exists(path):
+        return
+    with open(path, encoding="utf-8") as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
 def main():
+    load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
     parser = argparse.ArgumentParser(
         description='Scraper Suite - Instagram & YouTube Production Pipeline',
         formatter_class=argparse.RawDescriptionHelpFormatter
@@ -187,7 +200,9 @@ def main():
     #  Public Instagram content — all via yt-dlp (no mobile API)         #
     # ------------------------------------------------------------------ #
     from insta.ytdlp_fetcher import YtdlpInstaFetcher
-    fetcher = YtdlpInstaFetcher()
+    scraping_path = os.getenv("SCRAPING_PATH", "playwright")
+    logger.info(f"Instagram scraping path: {scraping_path}")
+    fetcher = YtdlpInstaFetcher(scraping_path=scraping_path, session_dir=args.outdir)
 
     if args.ig_bulk:
         logger.info(f"=== MODE: Instagram Bulk File ({args.ig_bulk}) ===")

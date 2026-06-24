@@ -8,7 +8,7 @@ from spotipy.cache_handler import CacheFileHandler
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 
 from config.config import (
-    MAX_WORKERS,
+    SPOTIFY_FETCH_WORKERS,
     SPOTIFY_CACHE_PATH,
     SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET,
@@ -206,7 +206,7 @@ class SpotifyProvider:
         if not playlist_refs:
             return playlists
 
-        worker_count = min(max(MAX_WORKERS, 1), 4, len(playlist_refs))
+        worker_count = min(max(SPOTIFY_FETCH_WORKERS, 1), len(playlist_refs))
         logger.info(f"Fetching tracks for {len(playlist_refs)} playlists with {worker_count} workers")
         playlists, errors = self._fetch_playlist_batch(playlist_refs, worker_count)
 

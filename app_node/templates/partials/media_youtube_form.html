@@ -11,21 +11,6 @@
     <label class="label" for="media-youtube-batch">Batch inputs</label>
     <textarea class="textarea" id="media-youtube-batch" name="inputs_text" rows="4" placeholder="One input per line"></textarea>
   </div>
-  <div class="field">
-    <label class="label" for="media-youtube-file">Input file path</label>
-    <input class="input" type="text" id="media-youtube-file" name="input_file" placeholder="./data/my_transcripts/urls.txt">
-  </div>
-  <div class="field-group" data-output-mode-group>
-    <span class="label">Output mode</span>
-    <div class="choice-row">
-      <label class="choice"><input type="radio" name="output_mode" value="temporary" checked> Temporary artifacts</label>
-      <label class="choice"><input type="radio" name="output_mode" value="persistent"> Persistent outdir</label>
-    </div>
-  </div>
-  <div class="field is-hidden" data-outdir-field>
-    <label class="label" for="media-youtube-outdir">Output directory</label>
-    <input class="input" type="text" id="media-youtube-outdir" name="outdir" placeholder="./data/my_transcripts">
-  </div>
   <button class="button button--wide" type="submit">Submit Job</button>
   <span class="submit-indicator" aria-live="polite">Submitting...</span>
 </form>

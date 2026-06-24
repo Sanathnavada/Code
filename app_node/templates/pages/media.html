@@ -4,16 +4,12 @@
 <section class="page-header">
   <span class="eyebrow">Media Engine</span>
   <h1>Turn YouTube and Instagram sources into structured files.</h1>
-  <p>Supports queued YouTube transcription, Instagram scraping, OCR, Whisper passes, and LLM cleanup.</p>
+  <p>Supports queued YouTube transcription, Instagram scraping, OCR, and Whisper passes.</p>
 </section>
 
 <section class="segment-bar" data-tab-group>
   <button class="segment-bar__button is-active" hx-get="/ui/media/forms/youtube" hx-target="#media-form-panel" hx-swap="innerHTML" data-tab> YouTube </button>
-  <button class="segment-bar__button" hx-get="/ui/media/forms/post" hx-target="#media-form-panel" hx-swap="innerHTML" data-tab> Instagram Post </button>
-  <button class="segment-bar__button" hx-get="/ui/media/forms/public-user" hx-target="#media-form-panel" hx-swap="innerHTML" data-tab> Public User </button>
-  <button class="segment-bar__button" hx-get="/ui/media/forms/private-user" hx-target="#media-form-panel" hx-swap="innerHTML" data-tab> Private Collection </button>
-  <button class="segment-bar__button" hx-get="/ui/media/forms/bulk" hx-target="#media-form-panel" hx-swap="innerHTML" data-tab> Bulk URLs </button>
-  <button class="segment-bar__button" hx-get="/ui/media/forms/clean" hx-target="#media-form-panel" hx-swap="innerHTML" data-tab> Clean Output </button>
+  <button class="segment-bar__button" hx-get="/ui/media/forms/instagram" hx-target="#media-form-panel" hx-swap="innerHTML" data-tab> Instagram </button>
 </section>
 
 <section class="console-grid">
@@ -31,15 +27,15 @@
 <section class="card-grid card-grid--three">
   <article class="note-card">
     <h3>Input normalization</h3>
-    <p>The media UI supports direct input, multi-line batch input, and local `.txt` or `.json` files where the backend allows them.</p>
+    <p>The media UI supports direct input and multi-line batches. Server-side file paths remain available only through backend/CLI flows.</p>
   </article>
   <article class="note-card">
-    <h3>Artifact mode</h3>
-    <p>Leave the output directory blank to create temporary downloadable artifacts instead of persistent files.</p>
+    <h3>Temporary downloads</h3>
+    <p>Completed jobs create downloadable artifacts on the server for a short retention window.</p>
   </article>
   <article class="note-card">
     <h3>Processing stack</h3>
-    <p>Behind the gateway, YouTube and Instagram tasks pass through scraping, OCR, transcription, and LLM cleanup layers.</p>
+    <p>Behind the gateway, YouTube and Instagram tasks pass through scraping, OCR, and transcription layers.</p>
   </article>
 </section>
 {% endblock %}

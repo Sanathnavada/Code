@@ -24,6 +24,12 @@ def ensure_artifact_root() -> None:
     ARTIFACT_ROOT.mkdir(parents=True, exist_ok=True)
 
 
+def _public_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
+    public = artifact.copy()
+    public.pop("absolute_path", None)
+    return public
+
+
 def create_job_output_dir(task_id: str, service: str, ephemeral: bool,
                           persistent_outdir: Optional[str] = None) -> tuple[Path, str]:
     if persistent_outdir:
@@ -66,13 +72,13 @@ def register_directory_artifacts(task_id: str, base_dir: Path,
         })
 
     _artifact_index[task_id] = {artifact["artifact_id"]: artifact for artifact in artifacts}
-    return artifacts
+    return [_public_artifact(artifact) for artifact in artifacts]
 
 
 def list_artifacts(task_id: str) -> list[dict[str, Any]]:
     artifacts = []
     for artifact in _artifact_index.get(task_id, {}).values():
-        artifact = artifact.copy()
+        artifact = _public_artifact(artifact)
         artifact["download_url"] = (
             f"/api/tasks/{task_id}/artifacts/"
             f"{quote(artifact['artifact_id'], safe='/')}"

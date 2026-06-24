@@ -6,7 +6,7 @@
   <title>{% block title %}Gateway Console{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/app.css?v=spotify-library-list-3">
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
-  <script src="/static/js/app.js?v=spotify-auth-memory-2" defer></script>
+  <script src="/static/js/app.js?v=media-instagram-modes-1" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -18,9 +18,18 @@
 
       <nav class="topnav">
         <a href="/" class="topnav__link {% if active_page == 'home' %}is-active{% endif %}">Home</a>
+        {% if feature_flags.telegram %}
         <a href="/telegram" class="topnav__link {% if active_page == 'telegram' %}is-active{% endif %}">Telegram</a>
+        {% endif %}
+        {% if feature_flags.media %}
         <a href="/media" class="topnav__link {% if active_page == 'media' %}is-active{% endif %}">Media</a>
+        {% endif %}
+        {% if feature_flags.music %}
         <a href="/music" class="topnav__link {% if active_page == 'music' %}is-active{% endif %}">Music</a>
+        {% if feature_flags.navidrome %}
+        <a href="http://127.0.0.1:4533" class="topnav__link" target="_blank" rel="noreferrer">My Music Library</a>
+        {% endif %}
+        {% endif %}
       </nav>
 
       <div class="topbar__actions">
@@ -34,7 +43,7 @@
     </main>
 
     <footer class="footer">
-      <span>One gateway. Three engines. Local-first automation.</span>
+      <span>One gateway. Local-first automation.</span>
       <span class="footer__muted">FastAPI + HTMX + server-rendered templates</span>
     </footer>
   </div>

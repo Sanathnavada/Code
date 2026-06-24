@@ -6,7 +6,14 @@ import tempfile
 import shutil
 from pathlib import Path
 from typing import Dict, List, Optional
-from config.config import ROOT_OUTPUT_DIR, COOKIES_FILE, DB_FILE, get_logger
+from config.config import (
+    ROOT_OUTPUT_DIR,
+    COOKIES_FILE,
+    DB_FILE,
+    MUSIC_DOWNLOAD_WORKERS,
+    MUSIC_DOWNLOAD_WORKERS_EPHEMERAL,
+    get_logger,
+)
 
 logger = get_logger("Downloader")
 
@@ -172,7 +179,7 @@ class MusicDownloader:
         logger.info(f"💾 Processing {len(tasks)} items (Ephemeral: {self.ephemeral})...")
         
         results = []
-        workers = 4 if not self.ephemeral else 2 
+        workers = MUSIC_DOWNLOAD_WORKERS_EPHEMERAL if self.ephemeral else MUSIC_DOWNLOAD_WORKERS
         
         with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
             future_map = {ex.submit(self._download_task, u, p): u for u, p in tasks}

@@ -11,21 +11,6 @@
     <label class="label" for="music-link-batch">Batch URLs</label>
     <textarea class="textarea" id="music-link-batch" name="urls_text" rows="5" placeholder="One Spotify URL per line"></textarea>
   </div>
-  <div class="field">
-    <label class="label" for="music-link-file">Input file path</label>
-    <input class="input" type="text" id="music-link-file" name="input_file" placeholder="./data/spotify_links.txt">
-  </div>
-  <div class="field-group" data-output-mode-group>
-    <span class="label">Output mode</span>
-    <div class="choice-row">
-      <label class="choice"><input type="radio" name="output_mode" value="temporary" checked> Temporary artifacts</label>
-      <label class="choice"><input type="radio" name="output_mode" value="persistent"> Persistent outdir</label>
-    </div>
-  </div>
-  <div class="field is-hidden" data-outdir-field>
-    <label class="label" for="music-link-outdir">Output directory</label>
-    <input class="input" type="text" id="music-link-outdir" name="outdir" placeholder="./downloads/spotify_links">
-  </div>
   <button class="button button--wide" type="submit">Resolve Through YouTube</button>
   <span class="submit-indicator" aria-live="polite">Submitting...</span>
 </form>

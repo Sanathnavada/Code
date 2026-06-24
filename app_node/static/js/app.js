@@ -41,6 +41,38 @@
     });
   }
 
+  function initModeGroups(root) {
+    root.querySelectorAll("[data-mode-group]").forEach(function (group) {
+      if (group.dataset.boundModeGroup) {
+        return;
+      }
+      group.dataset.boundModeGroup = "true";
+      var groupName = group.dataset.modeGroup;
+      var radios = group.querySelectorAll('input[type="radio"]');
+      var container = group.closest("form") || document;
+
+      function sync() {
+        var selected = group.querySelector('input[type="radio"]:checked');
+        var value = selected ? selected.value : "";
+        container.querySelectorAll('[data-mode-panel="' + groupName + '"]').forEach(function (panel) {
+          var active = panel.dataset.modeValue === value;
+          panel.classList.toggle("is-hidden", !active);
+          panel.querySelectorAll("input, textarea, select").forEach(function (input) {
+            input.disabled = !active;
+            if (input.dataset.requiredWhenActive === "true") {
+              input.required = active;
+            }
+          });
+        });
+      }
+
+      radios.forEach(function (radio) {
+        radio.addEventListener("change", sync);
+      });
+      sync();
+    });
+  }
+
   function initTabGroups(root) {
     root.querySelectorAll("[data-tab-group]").forEach(function (group) {
       group.querySelectorAll("[data-tab]").forEach(function (button) {
@@ -80,6 +112,7 @@
 
   function init(root) {
     initOutputModeGroups(root);
+    initModeGroups(root);
     initTabGroups(root);
     initSpotifyAuthLinks(root);
   }

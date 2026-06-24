@@ -26,7 +26,7 @@ if sys.platform == "win32":
 
 from .artifacts import cleanup_expired_artifacts, list_artifacts, resolve_artifact_path
 from .routers import media, music, telegram, ui
-from .settings import NAVIDROME_DIR, NAVIDROME_EXE
+from .settings import NAVIDROME_DIR, NAVIDROME_ENABLED, NAVIDROME_EXE
 from .tasks import all_tasks, cancel_task, get_task, shutdown_tasks, startup_tasks
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,9 @@ async def lifespan(app: FastAPI):
     global _navidrome_proc
     await startup_tasks()
 
-    if _is_port_open("127.0.0.1", 4533):
+    if not NAVIDROME_ENABLED:
+        logger.info("Navidrome disabled by NAVIDROME_ENABLED=false.")
+    elif _is_port_open("127.0.0.1", 4533):
         logger.info("Navidrome already available on http://localhost:4533 - reusing it.")
     elif NAVIDROME_EXE.exists():
         if sys.platform == "win32":

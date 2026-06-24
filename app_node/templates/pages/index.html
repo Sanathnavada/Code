@@ -4,7 +4,7 @@
 <section class="hero">
   <div class="hero__copy">
     <span class="eyebrow">Local Automation Gateway</span>
-    <h1 class="hero__title">Telegram agent, media processor, and music resolver behind one FastAPI orchestration layer.</h1>
+    <h1 class="hero__title">Local automation engines behind one FastAPI orchestration layer.</h1>
     <p class="hero__subtitle">
       A single-machine automation system with queued execution, artifact downloads, Spotify auth flow,
       and API-first service boundaries.
@@ -17,6 +17,7 @@
 </section>
 
 <section class="card-grid card-grid--three">
+  {% if feature_flags.telegram %}
   <article class="card engine-card">
     <span class="card__kicker">Telegram Agent</span>
     <h2 class="card__title">Runtime control for the Telegram bot.</h2>
@@ -29,24 +30,28 @@
     <p class="api-line">POST <code>/api/telegram/start</code></p>
     <a class="button button--wide" href="/telegram">Open Telegram Console</a>
   </article>
+  {% endif %}
 
+  {% if feature_flags.media %}
   <article class="card engine-card">
     <span class="card__kicker">Media Engine</span>
-    <h2 class="card__title">Scrape, transcribe, OCR, and clean media sources.</h2>
+    <h2 class="card__title">Scrape, transcribe, and OCR media sources.</h2>
     <p class="card__body">Turn Instagram and YouTube inputs into structured files and downloadable artifacts.</p>
     <div class="chip-row">
       <span class="chip">YouTube transcription</span>
       <span class="chip">Instagram scraping</span>
-      <span class="chip">LLM cleanup</span>
+      <span class="chip">Temporary downloads</span>
     </div>
     <p class="api-line">POST <code>/api/media/youtube</code></p>
     <a class="button button--wide" href="/media">Open Media Console</a>
   </article>
+  {% endif %}
 
+  {% if feature_flags.music %}
   <article class="card engine-card">
     <span class="card__kicker">Music Engine</span>
     <h2 class="card__title">Resolve Spotify and YouTube sources into local audio artifacts.</h2>
-    <p class="card__body">Batch-friendly download flows with temporary artifacts or persistent output directories.</p>
+    <p class="card__body">Batch-friendly download flows with temporary downloadable artifacts.</p>
     <div class="chip-row">
       <span class="chip">Spotify auth</span>
       <span class="chip">yt-dlp downloads</span>
@@ -54,7 +59,11 @@
     </div>
     <p class="api-line">POST <code>/api/music/yt</code></p>
     <a class="button button--wide" href="/music">Open Music Console</a>
+    {% if feature_flags.navidrome %}
+    <a class="button button--ghost button--wide" href="http://127.0.0.1:4533" target="_blank" rel="noreferrer">Open My Music Library</a>
+    {% endif %}
   </article>
+  {% endif %}
 </section>
 
 <section class="section-grid">
@@ -70,7 +79,7 @@
       <div class="architecture-strip__arrow">→</div>
       <div class="architecture-strip__node">Task Queue</div>
       <div class="architecture-strip__arrow">→</div>
-      <div class="architecture-strip__node">music_node / media_node / i_node</div>
+      <div class="architecture-strip__node">Enabled node services</div>
       <div class="architecture-strip__arrow">→</div>
       <div class="architecture-strip__node">Artifacts / Results</div>
     </div>

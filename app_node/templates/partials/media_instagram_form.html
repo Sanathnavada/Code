@@ -1,0 +1,42 @@
+<div class="section-head section-head--compact">
+  <h3>Instagram</h3>
+  <p>Process post URLs, a public profile, or a private saved collection.</p>
+</div>
+<form class="stack-form" hx-post="/ui/media/instagram/submit" hx-target="#media-task-panel" hx-swap="innerHTML" hx-disabled-elt="find button" hx-indicator="find .submit-indicator">
+  <div class="field-group" data-mode-group="instagram-source">
+    <span class="label">Source</span>
+    <div class="choice-row">
+      <label class="choice"><input type="radio" name="instagram_mode" value="posts" checked> Posts</label>
+      <label class="choice"><input type="radio" name="instagram_mode" value="public_profile"> Public Profile</label>
+      <label class="choice"><input type="radio" name="instagram_mode" value="private_collection"> Private Collection</label>
+    </div>
+  </div>
+
+  <div class="mode-panel" data-mode-panel="instagram-source" data-mode-value="posts">
+    <div class="field">
+      <label class="label" for="media-instagram-urls">Post or reel URLs</label>
+      <textarea class="textarea" id="media-instagram-urls" name="urls_text" rows="6" placeholder="One Instagram post or reel URL per line" data-required-when-active="true"></textarea>
+    </div>
+  </div>
+
+  <div class="mode-panel is-hidden" data-mode-panel="instagram-source" data-mode-value="public_profile">
+    <div class="field">
+      <label class="label" for="media-instagram-username">Instagram username</label>
+      <input class="input" type="text" id="media-instagram-username" name="username" placeholder="krishnakarthikeyan" data-required-when-active="true">
+    </div>
+    <div class="field">
+      <label class="label" for="media-instagram-firstn">First N posts</label>
+      <input class="input" type="number" min="1" value="3" id="media-instagram-firstn" name="first_n" data-required-when-active="true">
+    </div>
+  </div>
+
+  <div class="mode-panel is-hidden" data-mode-panel="instagram-source" data-mode-value="private_collection">
+    <div class="field">
+      <label class="label" for="media-instagram-collection">Collection name</label>
+      <input class="input" type="text" id="media-instagram-collection" name="collection" placeholder="Mind" data-required-when-active="true">
+    </div>
+  </div>
+
+  <button class="button button--wide" type="submit">Submit Job</button>
+  <span class="submit-indicator" aria-live="polite">Submitting...</span>
+</form>

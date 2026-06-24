@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 import re
 from typing import Any, Awaitable, Callable, Optional
 
+from .runtime_capacity import MAX_CONCURRENT_JOBS
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -42,6 +44,12 @@ class Task:
 class _QueuedJob:
     task_id: str
     runner: Callable[[], Any]
+
+
+def _exclusive_group_for_service(service: str) -> Optional[str]:
+    if service in {"media.public_user", "media.private_user", "media.post", "media.ig_bulk"}:
+        return "instagram"
+    return None
 
 
 class TaskManager:
@@ -125,16 +133,38 @@ class TaskManager:
     async def _worker_loop(self) -> None:
         while True:
             await self._queue_event.wait()
-            job = None
+            jobs = []
             async with self._lock:
-                if self._queue:
+                available_slots = max(self.max_concurrent_jobs - len(self._running_handles), 0)
+                running_groups = {
+                    group for group in (
+                        _exclusive_group_for_service(self._tasks[task_id].service)
+                        for task_id in self._running_handles
+                        if task_id in self._tasks
+                    )
+                    if group
+                }
+                remaining = deque()
+                while self._queue:
                     job = self._queue.popleft()
-                    self._refresh_queue_positions_locked()
-                else:
+                    group = _exclusive_group_for_service(self._tasks[job.task_id].service)
+                    if available_slots > 0 and (not group or group not in running_groups):
+                        jobs.append(job)
+                        available_slots -= 1
+                        if group:
+                            running_groups.add(group)
+                    else:
+                        remaining.append(job)
+                self._queue = remaining
+                if not self._queue:
                     self._queue_event.clear()
-            if not job:
+                self._refresh_queue_positions_locked()
+            if not jobs:
+                await asyncio.sleep(0.1)
                 continue
-            await self._run_job(job)
+            for job in jobs:
+                handle = asyncio.create_task(self._run_job(job))
+                self._running_handles[job.task_id] = handle
 
     async def _run_job(self, job: _QueuedJob) -> None:
         task = self._tasks[job.task_id]
@@ -149,11 +179,8 @@ class TaskManager:
                 return await result
             return result
 
-        handle = asyncio.create_task(invoke_runner())
-        self._running_handles[task.id] = handle
-
         try:
-            task.result = await handle
+            task.result = await invoke_runner()
             if isinstance(task.result, dict) and isinstance(task.result.get("artifacts"), list):
                 task.artifacts = task.result["artifacts"]
             task.status = "completed"
@@ -179,7 +206,7 @@ class TaskManager:
             task.queue_position = index
 
 
-task_manager = TaskManager()
+task_manager = TaskManager(max_concurrent_jobs=MAX_CONCURRENT_JOBS)
 
 
 async def startup_tasks() -> None:

@@ -1,30 +1,11 @@
 <div class="section-head section-head--compact">
   <h3>Private Collection</h3>
-  <p>Private collection scraping uses a stable Playwright-backed session directory for login reuse.</p>
+  <p>Private collection scraping uses a Playwright browser session for login reuse.</p>
 </div>
 <form class="stack-form" hx-post="/ui/media/private-user/submit" hx-target="#media-task-panel" hx-swap="innerHTML" hx-disabled-elt="find button" hx-indicator="find .submit-indicator">
   <div class="field">
     <label class="label" for="media-private-collection">Collection name</label>
     <input class="input" type="text" id="media-private-collection" name="collection" placeholder="Mind">
-  </div>
-  <div class="field">
-    <label class="label" for="media-private-username">Instagram username (first run only)</label>
-    <input class="input" type="text" id="media-private-username" name="username" placeholder="sanath_navada">
-  </div>
-  <div class="field">
-    <label class="label" for="media-private-password">Instagram password (first run only)</label>
-    <input class="input" type="password" id="media-private-password" name="password" placeholder="••••••••">
-  </div>
-  <div class="field-group" data-output-mode-group>
-    <span class="label">Output mode</span>
-    <div class="choice-row">
-      <label class="choice"><input type="radio" name="output_mode" value="temporary" checked> Temporary artifacts</label>
-      <label class="choice"><input type="radio" name="output_mode" value="persistent"> Persistent outdir</label>
-    </div>
-  </div>
-  <div class="field is-hidden" data-outdir-field>
-    <label class="label" for="media-private-outdir">Output directory</label>
-    <input class="input" type="text" id="media-private-outdir" name="outdir" placeholder="./data/my_collections">
   </div>
   <button class="button button--wide" type="submit">Submit Job</button>
   <span class="submit-indicator" aria-live="polite">Submitting...</span>

@@ -34,7 +34,25 @@ SPOTIFY_BACKUP_FILE = BASE_DIR / "spotify_playlists_backup.txt"
 if not ROOT_OUTPUT_DIR.exists():
     ROOT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # --- Tuning ---
-MAX_WORKERS = 8
+def _env_int_or_auto(name: str, auto_value: int) -> int:
+    value = (os.getenv(name) or "auto").strip().lower()
+    if value == "auto":
+        return max(auto_value, 1)
+    try:
+        return max(int(value), 1)
+    except ValueError:
+        return max(auto_value, 1)
+
+
+CPU_COUNT = max(os.cpu_count() or 1, 1)
+YOUTUBE_RESOLVE_WORKERS = _env_int_or_auto("YOUTUBE_RESOLVE_WORKERS", min(8, max(2, CPU_COUNT)))
+SPOTIFY_FETCH_WORKERS = _env_int_or_auto("SPOTIFY_FETCH_WORKERS", min(4, max(2, CPU_COUNT // 2)))
+MUSIC_DOWNLOAD_WORKERS = _env_int_or_auto("MUSIC_DOWNLOAD_WORKERS", min(4, max(2, CPU_COUNT // 2)))
+MUSIC_DOWNLOAD_WORKERS_EPHEMERAL = _env_int_or_auto(
+    "MUSIC_DOWNLOAD_WORKERS_EPHEMERAL",
+    min(2, MUSIC_DOWNLOAD_WORKERS),
+)
+MAX_WORKERS = YOUTUBE_RESOLVE_WORKERS
 YT_SEARCH_LIMIT = 10
 MIN_CONFIDENCE_SCORE = 40
 

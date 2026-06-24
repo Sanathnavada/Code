@@ -1,6 +1,6 @@
 <div class="section-head section-head--compact">
   <h3>Music Download</h3>
-  <p>Use a song search, YouTube link, Spotify link, or a batch file.</p>
+  <p>Use a song search, YouTube link, Spotify link, or a multi-line batch.</p>
 </div>
 <form class="stack-form" hx-post="/ui/music/song/submit" hx-target="#music-task-panel" hx-swap="innerHTML" hx-disabled-elt="find button" hx-indicator="find .submit-indicator">
   <div class="field">
@@ -10,21 +10,6 @@
   <div class="field">
     <label class="label" for="music-song-batch">Batch inputs</label>
     <textarea class="textarea" id="music-song-batch" name="queries_text" rows="5" placeholder="One search or link per line"></textarea>
-  </div>
-  <div class="field">
-    <label class="label" for="music-song-file">Input file path</label>
-    <input class="input" type="text" id="music-song-file" name="input_file" placeholder="./data/song_queries.txt">
-  </div>
-  <div class="field-group" data-output-mode-group>
-    <span class="label">Output mode</span>
-    <div class="choice-row">
-      <label class="choice"><input type="radio" name="output_mode" value="temporary" checked> Temporary artifacts</label>
-      <label class="choice"><input type="radio" name="output_mode" value="persistent"> Persistent outdir</label>
-    </div>
-  </div>
-  <div class="field is-hidden" data-outdir-field>
-    <label class="label" for="music-song-outdir">Output directory</label>
-    <input class="input" type="text" id="music-song-outdir" name="outdir" placeholder="./downloads/music_batch">
   </div>
   <button class="button button--wide" type="submit">Download Audio</button>
   <span class="submit-indicator" aria-live="polite">Submitting...</span>

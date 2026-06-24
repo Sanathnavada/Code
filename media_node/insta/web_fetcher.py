@@ -1,10 +1,10 @@
 import os
-import sys
 import json
 import time
 import random
 import logging
 import requests
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -12,12 +12,14 @@ try:
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 except ImportError:
     logger.error("playwright not installed. Run: pip install playwright && playwright install chromium")
-    sys.exit(1)
+    sync_playwright = None
+    PlaywrightTimeout = TimeoutError
 
 # Instagram's public web app ID (same across all browser sessions)
 _WEB_APP_ID = "936619743392459"
 _WEB_BASE   = "https://www.instagram.com"
 _API_BASE   = f"{_WEB_BASE}/api/v1"
+_SC_RE = re.compile(r"instagram\.com/(?:p|reel|tv)/([A-Za-z0-9_-]+)")
 
 _BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -40,6 +42,8 @@ class WebCollectionFetcher:
     _SESSION_FILE = "web_session.json"
 
     def __init__(self, outdir, session_dir, username=None, password=None):
+        if sync_playwright is None:
+            raise RuntimeError("playwright not installed. Run: pip install playwright && playwright install chromium")
         self.outdir    = outdir
         self.username  = username   
         self.password  = password
@@ -60,8 +64,12 @@ class WebCollectionFetcher:
         logger.info("Opening browser for Instagram login — please complete login in the window.")
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False, slow_mo=50)
-            context = browser.new_context(user_agent=_BROWSER_UA)
+            browser = p.chromium.launch(
+                headless=False,
+                slow_mo=50,
+                args=["--start-maximized"],
+            )
+            context = browser.new_context(user_agent=_BROWSER_UA, no_viewport=True)
             page = context.new_page()
 
             page.goto(f"{_WEB_BASE}/accounts/login/", wait_until="domcontentloaded")
@@ -72,12 +80,15 @@ class WebCollectionFetcher:
             try:
                 page.wait_for_selector('input[name="username"]', timeout=5_000)
                 # Login form is visible — fill it automatically
-                page.fill('input[name="username"]', self.username, timeout=10_000)
-                time.sleep(random.uniform(0.5, 1.0))
-                page.fill('input[name="password"]', self.password, timeout=10_000)
-                time.sleep(random.uniform(0.3, 0.7))
-                page.click('button[type="submit"]', timeout=10_000)
-                logger.info("Credentials submitted. Handle any 2FA / challenge in the browser window...")
+                if self.username and self.password:
+                    page.fill('input[name="username"]', self.username, timeout=10_000)
+                    time.sleep(random.uniform(0.5, 1.0))
+                    page.fill('input[name="password"]', self.password, timeout=10_000)
+                    time.sleep(random.uniform(0.3, 0.7))
+                    page.click('button[type="submit"]', timeout=10_000)
+                    logger.info("Credentials submitted. Handle any 2FA / challenge in the browser window...")
+                else:
+                    logger.info("Login form visible. Complete Instagram login in the browser window.")
             except PlaywrightTimeout:
                 # Form didn't appear — Instagram already redirected us elsewhere
                 logger.info("Login form skipped (Instagram auto-redirected — already authenticated).")
@@ -89,14 +100,14 @@ class WebCollectionFetcher:
             except PlaywrightTimeout:
                 logger.error("Login timed out after 2 minutes.")
                 browser.close()
-                sys.exit(1)
+                raise RuntimeError("Instagram login timed out after 2 minutes.")
 
             logger.info("✓ Reached Instagram home feed.")
 
             # Give Instagram a moment to set all cookies
             time.sleep(2)
             raw_cookies = context.cookies()
-            browser.close()
+
 
         # Index cookies by name
         cookies = {c["name"]: c["value"] for c in raw_cookies}
@@ -104,27 +115,79 @@ class WebCollectionFetcher:
         missing  = required - cookies.keys()
         if missing:
             logger.error(f"Login may have failed — missing cookies: {missing}")
-            sys.exit(1)
+            browser.close()
+            raise RuntimeError(f"Instagram login may have failed; missing cookies: {sorted(missing)}")
 
         # Resolve and store username so we don't need it on future runs
         if not self.username:
-            self.username = self._resolve_username(cookies)
+            try:
+                self.username = self._resolve_username(cookies, page=page)
+            except Exception:
+                browser.close()
+                raise
         cookies["_ig_username"] = self.username
+        browser.close()
 
         logger.info(f"✓ Browser session established for @{self.username}.")
         return cookies
 
-    def _resolve_username(self, cookies: dict) -> str:
-        """Ask Instagram's API who we're logged in as."""
+    def _resolve_username(self, cookies: dict, page=None) -> str:
+        cached = cookies.get("_ig_username")
+        if cached:
+            return cached
+
         try:
             resp = self._make_session(cookies).get(
                 f"{_API_BASE}/accounts/current_user/?edit=true",
                 headers={"Accept": "application/json"}, timeout=15,
             )
-            return resp.json()["user"]["username"]
+            data = resp.json()
+            username = (data.get("user") or {}).get("username")
+            if username:
+                return username
         except Exception:
-            logger.error("Could not determine logged-in username. Pass --username explicitly.")
-            sys.exit(1)
+            pass
+
+        ds_user_id = cookies.get("ds_user_id")
+        if ds_user_id:
+            try:
+                resp = self._make_session(cookies).get(
+                    f"{_API_BASE}/users/{ds_user_id}/info/",
+                    headers={"Accept": "application/json"}, timeout=15,
+                )
+                data = resp.json()
+                username = (data.get("user") or {}).get("username")
+                if username:
+                    return username
+            except Exception:
+                pass
+
+        if page is not None:
+            try:
+                username = page.evaluate(
+                    """() => {
+                        const blocked = new Set([
+                            'accounts', 'direct', 'explore', 'reels', 'stories',
+                            'p', 'reel', 'tv', 'about', 'developer'
+                        ]);
+                        const links = Array.from(document.querySelectorAll('a[href^="/"]'));
+                        for (const link of links) {
+                            const value = (link.getAttribute('href') || '')
+                                .split('/')
+                                .filter(Boolean)[0];
+                            if (value && !blocked.has(value)) return value;
+                        }
+                        return '';
+                    }"""
+                )
+                if username:
+                    return username
+            except Exception:
+                pass
+
+        raise RuntimeError(
+            "Could not determine the logged-in Instagram username from the browser session."
+        )
 
     def _load_or_acquire_cookies(self) -> dict:
         """Load cached web session; open browser if expired or missing."""
@@ -141,17 +204,14 @@ class WebCollectionFetcher:
                     headers={"Accept": "application/json"}, timeout=15,
                 )
                 if probe.status_code == 200:
+                    if not self.username:
+                        self.username = self._resolve_username(data)
+                        data["_ig_username"] = self.username
                     logger.info(f"✓ Reusing cached web session for @{self.username}.")
                     return data
             except Exception:
                 pass
             logger.warning("Cached web session expired — re-opening browser.")
-
-        if not (self.username and self.password):
-            logger.error(
-                "No cached session found. Run with --username and --password once to log in and cache the session."
-            )
-            sys.exit(1)
 
         cookies = self._get_browser_cookies()
         os.makedirs(self.outdir, exist_ok=True)
@@ -198,7 +258,7 @@ class WebCollectionFetcher:
         resp = self._rsession.get(url, params=params, timeout=30)
         if resp.status_code == 401:
             logger.error("Web session expired mid-run. Delete web_session.json and retry.")
-            sys.exit(1)
+            raise RuntimeError("Instagram web session expired. Delete web_session.json and retry.")
         if not resp.ok:
             # Log the body so we can diagnose unexpected 400s
             try:
@@ -208,6 +268,126 @@ class WebCollectionFetcher:
             logger.error(f"[Web API] {resp.status_code} on {url} — {body}")
             resp.raise_for_status()
         return resp.json()
+
+    def fetch_public_profile(self, username: str, first_n: int = 0, last_n: int = 0) -> list:
+        self._ensure_session()
+        profile_username = username.strip().lstrip("@")
+        limit = first_n or last_n or 0
+        logger.info(f"[browser] Fetching public profile: @{profile_username}")
+        items = self._fetch_public_profile_via_browser(profile_username, limit)
+        logger.info(f"Fetched {len(items)} post(s) from @{profile_username} via browser session.")
+        return self._slice(items, first_n, last_n)
+
+    def _fetch_public_profile_via_browser(self, username: str, limit: int = 0) -> list:
+        with open(self.session_file) as f:
+            saved_cookies = json.load(f)
+
+        media_items = []
+        fallback_urls = []
+        seen_codes: set = set()
+
+        def add_item(item: dict) -> None:
+            code = item.get("code")
+            if code and code not in seen_codes:
+                seen_codes.add(code)
+                media_items.append(item)
+
+        def add_url(url: str) -> None:
+            match = _SC_RE.search(url)
+            if not match:
+                return
+            shortcode = match.group(1)
+            if shortcode not in seen_codes and url not in fallback_urls:
+                fallback_urls.append(url)
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=False,
+                slow_mo=50,
+                args=["--start-maximized"],
+            )
+            context = browser.new_context(user_agent=_BROWSER_UA, no_viewport=True)
+            context.add_cookies([
+                {"name": k, "value": v, "domain": ".instagram.com", "path": "/"}
+                for k, v in saved_cookies.items()
+                if k in {"sessionid", "csrftoken", "ds_user_id", "ig_did", "mid", "datr"}
+            ])
+            page = context.new_page()
+
+            def on_response(response):
+                content_type = response.headers.get("content-type", "")
+                if "json" not in content_type:
+                    return
+                try:
+                    data = response.json()
+                except Exception:
+                    return
+                for item in self._find_media_items(data):
+                    add_item(item)
+
+            page.on("response", on_response)
+            page.goto(f"{_WEB_BASE}/{username}/", wait_until="domcontentloaded", timeout=60_000)
+            time.sleep(3)
+
+            stall = 0
+            prev_count = 0
+            while stall < 4:
+                for href in page.eval_on_selector_all(
+                    'a[href^="/p/"], a[href^="/reel/"], a[href^="/tv/"]',
+                    "links => links.map(link => link.href)",
+                ):
+                    add_url(href)
+
+                if limit and len(media_items) >= limit:
+                    browser.close()
+                    return media_items[:limit]
+
+                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                time.sleep(2)
+                if len(media_items) == prev_count:
+                    stall += 1
+                else:
+                    stall = 0
+                prev_count = len(media_items)
+
+            browser.close()
+
+        if limit:
+            fallback_urls = fallback_urls[:max(limit - len(media_items), 0)]
+        if fallback_urls:
+            from insta.ytdlp_fetcher import YtdlpInstaFetcher
+
+            fetcher = YtdlpInstaFetcher(
+                scraping_path="playwright",
+                session_dir=os.path.dirname(self.session_file),
+            )
+            for url in fallback_urls:
+                for item in fetcher.fetch_single_post(url):
+                    add_item(item)
+
+        return media_items[:limit] if limit else media_items
+
+    def _find_media_items(self, value) -> list:
+        found = []
+
+        def walk(node):
+            if isinstance(node, dict):
+                item = self._normalize(node)
+                if item.get("code") and (
+                    item.get("image_versions2")
+                    or item.get("video_versions")
+                    or item.get("carousel_media")
+                ):
+                    found.append(item)
+                    return
+                for child in node.values():
+                    walk(child)
+            elif isinstance(node, list):
+                for child in node:
+                    walk(child)
+
+        walk(value)
+        return found
 
     def fetch_collection(self, collection_name: str, first_n: int = 0, last_n: int = 0) -> list:
         # Step 1: use requests to get the collection ID (this endpoint works fine)
@@ -233,7 +413,7 @@ class WebCollectionFetcher:
 
         if not col_id:
             logger.error(f"❌ Collection '{collection_name}' not found. Check name (case-sensitive).")
-            sys.exit(1)
+            raise RuntimeError(f"Instagram collection '{collection_name}' was not found. Check the exact name.")
 
         logger.info(f"Found collection id: {col_id}")
 
@@ -252,8 +432,12 @@ class WebCollectionFetcher:
         seen_codes: set = set()  # dedup guard — browser can fire same response twice
 
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False, slow_mo=50)
-            context = browser.new_context(user_agent=_BROWSER_UA)
+            browser = p.chromium.launch(
+                headless=False,
+                slow_mo=50,
+                args=["--start-maximized"],
+            )
+            context = browser.new_context(user_agent=_BROWSER_UA, no_viewport=True)
 
             # Restore the authenticated session into the browser context
             context.add_cookies([
@@ -318,11 +502,28 @@ class WebCollectionFetcher:
         The web API returns essentially the same JSON as the mobile API.
         Normalise to the dict format that ScraperService.process_posts expects.
         """
-        mt = m.get("media_type", 1)
+        code = m.get("code") or m.get("shortcode") or ""
+        carousel_children = m.get("carousel_media")
+        if not carousel_children and isinstance(m.get("edge_sidecar_to_children"), dict):
+            carousel_children = [
+                edge.get("node")
+                for edge in m["edge_sidecar_to_children"].get("edges", [])
+                if edge.get("node")
+            ]
+
+        mt = m.get("media_type")
+        if mt is None:
+            if carousel_children:
+                mt = 8
+            elif m.get("is_video"):
+                mt = 2
+            else:
+                mt = 1
+
         out = {
             "pk":         str(m.get("pk", m.get("id", ""))),
             "id":         str(m.get("id", "")),
-            "code":       m.get("code", ""),
+            "code":       code,
             "media_type": mt,
             "product_type": m.get("product_type", "feed"),
         }
@@ -334,14 +535,18 @@ class WebCollectionFetcher:
         # Images
         if m.get("image_versions2"):
             out["image_versions2"] = m["image_versions2"]
+        elif m.get("display_url"):
+            out["image_versions2"] = {"candidates": [{"url": m["display_url"]}]}
 
         # Videos
         if m.get("video_versions"):
             out["video_versions"] = m["video_versions"]
+        elif m.get("video_url"):
+            out["video_versions"] = [{"url": m["video_url"]}]
 
         # Carousels
-        if mt == 8 and m.get("carousel_media"):
-            out["carousel_media"] = [self._normalize(child) for child in m["carousel_media"]]
+        if mt == 8 and carousel_children:
+            out["carousel_media"] = [self._normalize(child) for child in carousel_children]
 
         return out
 

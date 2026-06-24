@@ -7,21 +7,6 @@
     <label class="label" for="media-bulk-urls">URLs</label>
     <textarea class="textarea" id="media-bulk-urls" name="urls_text" rows="6" placeholder="One Instagram URL per line"></textarea>
   </div>
-  <div class="field">
-    <label class="label" for="media-bulk-file">Input file path</label>
-    <input class="input" type="text" id="media-bulk-file" name="input_file" placeholder="./data/bulk_urls.txt">
-  </div>
-  <div class="field-group" data-output-mode-group>
-    <span class="label">Output mode</span>
-    <div class="choice-row">
-      <label class="choice"><input type="radio" name="output_mode" value="temporary" checked> Temporary artifacts</label>
-      <label class="choice"><input type="radio" name="output_mode" value="persistent"> Persistent outdir</label>
-    </div>
-  </div>
-  <div class="field is-hidden" data-outdir-field>
-    <label class="label" for="media-bulk-outdir">Output directory</label>
-    <input class="input" type="text" id="media-bulk-outdir" name="outdir" placeholder="./data/bulk">
-  </div>
   <button class="button button--wide" type="submit">Submit Job</button>
   <span class="submit-indicator" aria-live="polite">Submitting...</span>
 </form>
